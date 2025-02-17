@@ -30,7 +30,7 @@ class SocialMediaAssistant:
         self.default_language = default_language
         self.content_library: List[Content] = []
         self.platform_specs = {
-            'twitter': {'max_length': 280, 'hashtag_limit': 3},
+            'x': {'max_length': 280, 'hashtag_limit': 3},
             'linkedin': {'max_length': 3000, 'hashtag_limit': 5},
             'facebook': {'max_length': 2000, 'hashtag_limit': 4}
         }
@@ -71,8 +71,9 @@ class SocialMediaAssistant:
         language_name = self.supported_languages.get(language, 'English')
         
         for platform, specs in self.platform_specs.items():
+            platform_name = 'X' if platform == 'x' else platform.capitalize()  # Display 'X' instead of 'x'
             prompt = f"""
-            Create a {platform} post in {language_name} for the following content:
+            Create a {platform_name} post in {language_name} for the following content:
             Title: {title}
             Content: {content}
             
@@ -81,7 +82,7 @@ class SocialMediaAssistant:
             - Maximum length: {specs['max_length']} characters
             - Maximum {specs['hashtag_limit']} relevant hashtags in {language_name}
             - Include a call to action in {language_name}
-            - Make it engaging for {platform}'s {language_name}-speaking audience
+            - Make it engaging for {platform_name}'s {language_name}-speaking audience
             - Keep hashtags in English for better reach, but the post in {language_name}
             """
             
@@ -96,7 +97,7 @@ class SocialMediaAssistant:
                 )
                 posts[platform] = response.choices[0].message.content.strip()
             except Exception as e:
-                print(f"Error generating {platform} post: {str(e)}")
+                print(f"Error generating {platform_name} post: {str(e)}")
                 posts[platform] = ""
                 
         return posts
@@ -126,10 +127,25 @@ class SocialMediaAssistant:
             print(f"Error extracting keywords: {str(e)}")
             return []
 
+    def is_duplicate(self, title: str, language: str) -> bool:
+        """Check if content with same title and language already exists"""
+        return any(
+            content.title.lower() == title.lower() and content.language == language 
+            for content in self.content_library
+        )
+
     def process_url(self, url: str, language: str = None) -> Content:
         """Process a URL and generate all necessary content"""
         # Extract content from URL
         extracted = self.extract_content(url)
+        
+        # Use default language if none specified
+        language = language or self.default_language
+        
+        # Check for duplicates
+        if self.is_duplicate(extracted['title'], language):
+            print(f"Content with title '{extracted['title']}' in {self.supported_languages[language]} already exists.")
+            return None
         
         # Generate platform-specific posts
         posts = self.generate_platform_posts(extracted['content'], extracted['title'], language)
@@ -161,7 +177,7 @@ class SocialMediaAssistant:
                 'platform_posts': content.platform_posts,
                 'keywords': content.keywords,
                 'language': content.language,
-                'posted': content.posted,
+                'posted': content.posted
             }
             library_data.append(content_dict)
             
@@ -182,7 +198,7 @@ class SocialMediaAssistant:
                     summary=item['summary'],
                     platform_posts=item['platform_posts'],
                     keywords=item['keywords'],
-                    language=item['language'],
+                    language=item.get('language', self.default_language),
                     posted=item['posted']
                 )
                 self.content_library.append(content)
@@ -220,24 +236,29 @@ def main():
                 language = 'en'
                 
             content = assistant.process_url(url, language)
-            print("\nProcessed Content:")
-            print(f"Title: {content.title}")
-            print("\nPlatform Posts:")
-            for platform, post in content.platform_posts.items():
-                print(f"\n{platform.upper()}:")
-                print(post)
-            print("\nKeywords:", ", ".join(content.keywords))
+            if content:  # Only show content if it's not a duplicate
+                print("\nProcessed Content:")
+                print(f"Title: {content.title}")
+                print(f"Language: {assistant.supported_languages[content.language]}")
+                print("\nPlatform Posts:")
+                for platform, post in content.platform_posts.items():
+                    platform_name = 'X' if platform == 'x' else platform.upper()
+                    print(f"\n{platform_name}:")
+                    print(post)
+                print("\nKeywords:", ", ".join(content.keywords))
             
         elif choice == '2':
             print("\nContent Library:")
             for i, content in enumerate(assistant.content_library, 1):
                 print(f"\n{i}. {content.title}")
                 print(f"URL: {content.url}")
+                print(f"Language: {assistant.supported_languages[content.language]}")
                 print(f"Summary: {content.summary}")
                 print(f"Keywords: {', '.join(content.keywords)}")
                 print("\nPlatform Posts:")
                 for platform, post in content.platform_posts.items():
-                    print(f"\n{platform.upper()}:")
+                    platform_name = 'X' if platform == 'x' else platform.upper()
+                    print(f"\n{platform_name}:")
                     print(post)
                 print("\nPosted:", "Yes" if content.posted else "No")
                 print("-" * 80)
