@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Union
+from typing import List, Dict
 from datetime import datetime
 import json
 from dataclasses import dataclass
@@ -19,6 +19,7 @@ class Content:
     summary: str
     platform_posts: Dict[str, str]
     keywords: List[str]
+    language: str
     posted: bool = False
 
 class SocialMediaAssistant:
@@ -142,7 +143,8 @@ class SocialMediaAssistant:
             title=extracted['title'],
             summary=extracted['content'][:200] + "...",
             platform_posts=posts,
-            keywords=keywords
+            keywords=keywords,
+            language=language
         )
         
         self.content_library.append(content)
@@ -158,7 +160,8 @@ class SocialMediaAssistant:
                 'summary': content.summary,
                 'platform_posts': content.platform_posts,
                 'keywords': content.keywords,
-                'posted': content.posted
+                'language': content.language,
+                'posted': content.posted,
             }
             library_data.append(content_dict)
             
@@ -179,6 +182,7 @@ class SocialMediaAssistant:
                     summary=item['summary'],
                     platform_posts=item['platform_posts'],
                     keywords=item['keywords'],
+                    language=item['language'],
                     posted=item['posted']
                 )
                 self.content_library.append(content)
