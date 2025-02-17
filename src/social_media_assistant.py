@@ -22,17 +22,29 @@ class Content:
     posted: bool = False
 
 class SocialMediaAssistant:
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini", default_language: str = "en"):    
         """Initialize the Social Media Assistant with OpenAI client and configurations"""
         self.client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
         self.model = model
+        self.default_language = default_language
         self.content_library: List[Content] = []
         self.platform_specs = {
             'twitter': {'max_length': 280, 'hashtag_limit': 3},
             'linkedin': {'max_length': 3000, 'hashtag_limit': 5},
             'facebook': {'max_length': 2000, 'hashtag_limit': 4}
         }
-        
+        self.supported_languages = {
+            'en': 'English',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ro': 'Romanian',
+            # Add more languages as needed
+        }
+
     def extract_content(self, url: str) -> Dict[str, str]:
         """Extract content from a given URL"""
         try:
@@ -42,7 +54,7 @@ class SocialMediaAssistant:
             # Extract title and main content
             title = soup.title.string if soup.title else ""
             
-            # Get main content (this is a simple implementation)
+            # Get main content
             article = soup.find('article') or soup.find('main') or soup.find('body')
             content = ' '.join([p.text for p in article.find_all('p')])
             
@@ -51,28 +63,32 @@ class SocialMediaAssistant:
             print(f"Error extracting content: {str(e)}")
             return {'title': '', 'content': ''}
 
-    def generate_platform_posts(self, content: str, title: str) -> Dict[str, str]:
-        """Generate platform-specific posts using AI"""
+    def generate_platform_posts(self, content: str, title: str, language: str = None) -> Dict[str, str]:
+        """Generate platform-specific posts using AI in specified language"""
         posts = {}
+        language = language or self.default_language
+        language_name = self.supported_languages.get(language, 'English')
         
         for platform, specs in self.platform_specs.items():
             prompt = f"""
-            Create a {platform} post for the following content:
+            Create a {platform} post in {language_name} for the following content:
             Title: {title}
             Content: {content}
             
             Requirements:
+            - Write the post in {language_name}
             - Maximum length: {specs['max_length']} characters
-            - Maximum {specs['hashtag_limit']} relevant hashtags
-            - Include a call to action
-            - Make it engaging for {platform}'s audience
+            - Maximum {specs['hashtag_limit']} relevant hashtags in {language_name}
+            - Include a call to action in {language_name}
+            - Make it engaging for {platform}'s {language_name}-speaking audience
+            - Keep hashtags in English for better reach, but the post in {language_name}
             """
             
             try:
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are a professional social media manager."},
+                        {"role": "system", "content": f"You are a professional social media manager who creates content in {language_name}."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7
@@ -109,13 +125,13 @@ class SocialMediaAssistant:
             print(f"Error extracting keywords: {str(e)}")
             return []
 
-    def process_url(self, url: str) -> Content:
+    def process_url(self, url: str, language: str = None) -> Content:
         """Process a URL and generate all necessary content"""
         # Extract content from URL
         extracted = self.extract_content(url)
         
         # Generate platform-specific posts
-        posts = self.generate_platform_posts(extracted['content'], extracted['title'])
+        posts = self.generate_platform_posts(extracted['content'], extracted['title'], language)
         
         # Extract keywords
         keywords = self.extract_keywords(extracted['content'])
@@ -177,7 +193,10 @@ def main():
     assistant.load_library()
     
     while True:
+        current_language = assistant.supported_languages[assistant.default_language]
         print("\nSocial Media Assistant Menu:")
+        print(f"Current Language: {current_language}")
+        print("-" * 30)
         print("1. Process new URL")
         print("2. View content library")
         print("3. Save library")
@@ -187,7 +206,16 @@ def main():
         
         if choice == '1':
             url = input("Enter URL to process: ")
-            content = assistant.process_url(url)
+            print("\nAvailable languages:")
+            for code, name in assistant.supported_languages.items():
+                print(f"{code}: {name}")
+            language = input("\nEnter language code (press Enter for English): ").lower() or 'en'
+            
+            if language not in assistant.supported_languages:
+                print(f"Unsupported language code. Using English.")
+                language = 'en'
+                
+            content = assistant.process_url(url, language)
             print("\nProcessed Content:")
             print(f"Title: {content.title}")
             print("\nPlatform Posts:")
