@@ -205,6 +205,18 @@ class SocialMediaAssistant:
         except FileNotFoundError:
             print(f"No existing library found at {filename}")
 
+    def delete_json_and_clear(self, filename: str = 'content_library.json'):
+        """Delete the output JSON file and clear the content library"""
+        try:
+            os.remove(filename)
+            self.content_library = []
+            print(f"Output file {filename} deleted and content library cleared successfully!")
+        except FileNotFoundError:
+            print(f"No output file found at {filename}, but content library was cleared!")
+            self.content_library = []
+        except Exception as e:
+            print(f"Error deleting file: {str(e)}")
+
 def main():
     """Main function to demonstrate the Social Media Assistant"""
     assistant = SocialMediaAssistant()
@@ -220,7 +232,8 @@ def main():
         print("1. Process new URL")
         print("2. View content library")
         print("3. Save library")
-        print("4. Exit")
+        print("4. Delete output JSON file and clear library")
+        print("5. Exit")
         
         choice = input("\nEnter your choice (1-4): ")
         
@@ -268,6 +281,13 @@ def main():
             print("Library saved successfully!")
             
         elif choice == '4':
+            confirmation = input("Are you sure you want to delete the JSON file and clear the library? (yes/no): ").lower()
+            if confirmation == 'yes':
+                assistant.delete_json_and_clear()
+            else:
+                print("Operation cancelled.")
+                
+        elif choice == '5':
             print("Goodbye!")
             break
             
