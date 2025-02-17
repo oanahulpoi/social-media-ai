@@ -6,7 +6,7 @@ A Python-based tool that leverages OpenAI's GPT to automate and enhance social m
 
 - **Content Extraction**: Automatically extract and analyze content from URLs
 - **AI-Powered Generation**: Create platform-optimized posts for:
-  - Twitter (with character limit and hashtag optimization)
+  - X (with character limit and hashtag optimization)
   - LinkedIn (professional tone and formatting)
   - Facebook (engagement-focused content)
 - **Smart Scheduling**: Plan and schedule posts for optimal timing
@@ -51,15 +51,16 @@ A Python-based tool that leverages OpenAI's GPT to automate and enhance social m
    - Saving/loading your content database
 
 
-## 📂 Project Structure
+# 📂 Project Structure
+
 social-media-ai/
-├── src/
-│   ├── __init__.py
-│   └── social_media_assistant.py
-├── .env
-├── .gitignore
-├── requirements.txt
-└── README.md
+├── src/                           # Source code directory
+│   ├── __init__.py               # Python package initializer
+│   └── social_media_assistant.py  # Main application logic
+├── .env                          # Environment variables configuration
+├── .gitignore                    # Git ignore rules
+├── requirements.txt              # Project dependencies
+└── README.md                     # Project documentation
 
 
 ## 🤝 Contributing
