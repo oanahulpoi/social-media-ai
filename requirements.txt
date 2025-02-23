@@ -3,6 +3,3 @@ python-dotenv
 beautifulsoup4
 requests
 schedule
-black
-pylint
-mypy
