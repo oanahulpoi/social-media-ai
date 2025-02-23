@@ -1,15 +1,26 @@
 import os
-from typing import List, Dict
-from datetime import datetime
+from typing import List, Dict, Optional
+from datetime import datetime, timedelta
 import json
 from dataclasses import dataclass
 from openai import OpenAI
 from dotenv import load_dotenv, find_dotenv
 import requests
 from bs4 import BeautifulSoup
+import schedule
+import time
+import threading
 
 # Load environment variables
 _ = load_dotenv(find_dotenv())
+
+@dataclass
+class ScheduledPost:
+    """Data class to store scheduling information"""
+    platform: str
+    content: str
+    scheduled_time: datetime
+    posted: bool = False
 
 @dataclass
 class Content:
@@ -20,7 +31,12 @@ class Content:
     platform_posts: Dict[str, str]
     keywords: List[str]
     language: str
+    scheduled_posts: List[ScheduledPost] = None
     posted: bool = False
+
+    def __post_init__(self):
+        if self.scheduled_posts is None:
+            self.scheduled_posts = []
 
 class SocialMediaAssistant:
     def __init__(self, model: str = "gpt-4o-mini", default_language: str = "en"):    
@@ -43,8 +59,16 @@ class SocialMediaAssistant:
             'pt': 'Portuguese',
             'nl': 'Dutch',
             'ro': 'Romanian',
-            # Add more languages as needed
         }
+        # Start the scheduler in a separate thread
+        self.scheduler_thread = threading.Thread(target=self._run_scheduler, daemon=True)
+        self.scheduler_thread.start()
+
+    def _run_scheduler(self):
+        """Run the scheduler in a separate thread"""
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # Check every minute
 
     def extract_content(self, url: str) -> Dict[str, str]:
         """Extract content from a given URL"""
@@ -71,7 +95,7 @@ class SocialMediaAssistant:
         language_name = self.supported_languages.get(language, 'English')
         
         for platform, specs in self.platform_specs.items():
-            platform_name = 'X' if platform == 'x' else platform.capitalize()  # Display 'X' instead of 'x'
+            platform_name = 'X' if platform == 'x' else platform.capitalize()
             prompt = f"""
             Create a {platform_name} post in {language_name} for the following content:
             Title: {title}
@@ -134,6 +158,47 @@ class SocialMediaAssistant:
             for content in self.content_library
         )
 
+    def schedule_post(self, content: Content, platform: str, scheduled_time: datetime) -> None:
+        """Schedule a post for a specific platform"""
+        if platform not in content.platform_posts:
+            print(f"No content available for platform: {platform}")
+            return
+
+        scheduled_post = ScheduledPost(
+            platform=platform,
+            content=content.platform_posts[platform],
+            scheduled_time=scheduled_time
+        )
+        content.scheduled_posts.append(scheduled_post)
+
+        # Schedule the post
+        schedule.every().day.at(scheduled_time.strftime("%H:%M")).do(
+            self.publish_post, content, scheduled_post
+        )
+
+        print(f"Post scheduled for {platform} at {scheduled_time}")
+
+    def publish_post(self, content: Content, scheduled_post: ScheduledPost) -> None:
+        """Publish a post to the specified platform"""
+        try:
+            # Here you would implement the actual posting logic for each platform
+            # For example, using platform-specific APIs
+            platform_name = scheduled_post.platform.upper()
+            print(f"Publishing to {platform_name}:")
+            print(scheduled_post.content)
+            
+            scheduled_post.posted = True
+            
+            # Check if all scheduled posts are published
+            if all(post.posted for post in content.scheduled_posts):
+                content.posted = True
+                
+            # Save the updated state
+            self.save_library()
+            
+        except Exception as e:
+            print(f"Error publishing to {scheduled_post.platform}: {str(e)}")
+
     def process_url(self, url: str, language: str = None) -> Content:
         """Process a URL and generate all necessary content"""
         # Extract content from URL
@@ -170,6 +235,16 @@ class SocialMediaAssistant:
         """Save content library to a JSON file"""
         library_data = []
         for content in self.content_library:
+            scheduled_posts_data = [
+                {
+                    'platform': post.platform,
+                    'content': post.content,
+                    'scheduled_time': post.scheduled_time.isoformat(),
+                    'posted': bool(post.posted)  
+                }
+                for post in content.scheduled_posts
+            ]
+            
             content_dict = {
                 'url': content.url,
                 'title': content.title,
@@ -177,7 +252,8 @@ class SocialMediaAssistant:
                 'platform_posts': content.platform_posts,
                 'keywords': content.keywords,
                 'language': content.language,
-                'posted': content.posted
+                'scheduled_posts': scheduled_posts_data,
+                'posted': bool(content.posted)
             }
             library_data.append(content_dict)
             
@@ -192,6 +268,16 @@ class SocialMediaAssistant:
                 
             self.content_library = []
             for item in library_data:
+                scheduled_posts = [
+                    ScheduledPost(
+                        platform=post['platform'],
+                        content=post['content'],
+                        scheduled_time=datetime.fromisoformat(post['scheduled_time']),
+                        posted=post['posted']
+                    )
+                    for post in item.get('scheduled_posts', [])
+                ]
+                
                 content = Content(
                     url=item['url'],
                     title=item['title'],
@@ -199,14 +285,23 @@ class SocialMediaAssistant:
                     platform_posts=item['platform_posts'],
                     keywords=item['keywords'],
                     language=item.get('language', self.default_language),
+                    scheduled_posts=scheduled_posts,
                     posted=item['posted']
                 )
                 self.content_library.append(content)
+                
+                # Reschedule any unposted content
+                for post in scheduled_posts:
+                    if not post.posted and post.scheduled_time > datetime.now():
+                        schedule.every().day.at(post.scheduled_time.strftime("%H:%M")).do(
+                            self.publish_post, content, post
+                        )
+                        
         except FileNotFoundError:
             print(f"No existing library found at {filename}")
 
     def delete_json_and_clear(self, filename: str = 'content_library.json'):
-        """Delete the output JSON file and clear the content library"""
+        """Delete the JSON file and clear the content library"""
         try:
             os.remove(filename)
             self.content_library = []
@@ -231,11 +326,13 @@ def main():
         print("-" * 30)
         print("1. Process new URL")
         print("2. View content library")
-        print("3. Save library")
-        print("4. Delete output JSON file and clear library")
-        print("5. Exit")
+        print("3. Schedule posts")
+        print("4. View scheduled posts")
+        print("5. Save library")
+        print("6. Delete JSON file and clear library")
+        print("7. Exit")
         
-        choice = input("\nEnter your choice (1-4): ")
+        choice = input("\nEnter your choice (1-7): ")
         
         if choice == '1':
             url = input("Enter URL to process: ")
@@ -277,17 +374,80 @@ def main():
                 print("-" * 80)
                 
         elif choice == '3':
+            if not assistant.content_library:
+                print("No content available to schedule. Please process some URLs first.")
+                continue
+                
+            print("\nAvailable content:")
+            for i, content in enumerate(assistant.content_library, 1):
+                print(f"{i}. {content.title} ({assistant.supported_languages[content.language]})")
+            
+            try:
+                content_idx = int(input("\nSelect content number: ")) - 1
+                content = assistant.content_library[content_idx]
+                
+                print("\nAvailable platforms:")
+                for platform in content.platform_posts.keys():
+                    platform_name = 'X' if platform == 'x' else platform.upper()
+                    print(f"- {platform_name}")
+                
+                platform = input("\nEnter platform: ").lower()
+                if platform not in content.platform_posts:
+                    print("Invalid platform selected.")
+                    continue
+                
+                # Get scheduling time
+                try:
+                    hour = int(input("Enter hour (0-23): "))
+                    if hour < 0 or hour > 23:
+                        raise ValueError("Hour must be between 0 and 23")
+                    
+                    minute = int(input("Enter minute (0-59): "))
+                    if minute < 0 or minute > 59:
+                        raise ValueError("Minute must be between 0 and 59")
+                    
+                    scheduled_time = datetime.now().replace(hour=hour, minute=minute)
+                    
+                    # If the time is in the past, schedule for tomorrow
+                    if scheduled_time < datetime.now():
+                        scheduled_time += timedelta(days=1)
+                    
+                    assistant.schedule_post(content, platform, scheduled_time)
+                    print(f"\nPost scheduled successfully for {scheduled_time.strftime('%Y-%m-%d %H:%M')}")
+                    
+                except ValueError as e:
+                    print(f"Invalid time format: {str(e)}")
+                
+            except (ValueError, IndexError):
+                print("Invalid input. Please try again.")
+                
+        elif choice == '4':
+            if not any(content.scheduled_posts for content in assistant.content_library):
+                print("No scheduled posts found.")
+                continue
+                
+            print("\nScheduled Posts:")
+            for content in assistant.content_library:
+                if content.scheduled_posts:
+                    print(f"\nContent: {content.title}")
+                    for post in content.scheduled_posts:
+                        platform_name = post.platform.upper()
+                        status = "Posted" if post.posted else "Pending"
+                        print(f"- {platform_name}: Scheduled for {post.scheduled_time.strftime('%Y-%m-%d %H:%M')}")
+                        print(f"  Status: {status}")
+                        
+        elif choice == '5':
             assistant.save_library()
             print("Library saved successfully!")
             
-        elif choice == '4':
+        elif choice == '6':
             confirmation = input("Are you sure you want to delete the JSON file and clear the library? (yes/no): ").lower()
             if confirmation == 'yes':
                 assistant.delete_json_and_clear()
             else:
                 print("Operation cancelled.")
                 
-        elif choice == '5':
+        elif choice == '7':
             print("Goodbye!")
             break
             
