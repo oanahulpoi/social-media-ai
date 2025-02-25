@@ -9,8 +9,10 @@ A Python-based tool that leverages OpenAI's GPT to automate and enhance social m
   - X (with character limit and hashtag optimization)
   - LinkedIn (professional tone and formatting)
   - Facebook (engagement-focused content)
-- **Smart Scheduling**: Plan and schedule posts for optimal timing
-- **Content Library**: Maintain a persistent, organized content database
+- **Multi-language Support**: Generate content in 8 different languages including English, Spanish, French, German, Italian, Portuguese, Dutch, and Romanian
+- **Smart Scheduling**: Plan and schedule posts for optimal timing with automated publishing
+- **Background Scheduler**: Runs in a separate thread to manage scheduled posts without interrupting the main application
+- **Content Library**: Maintain a persistent, organized content database with JSON storage
 - **Keyword Analysis**: AI-powered keyword and hashtag extraction
 - **Type-Safe Code**: Fully typed with Python type hints for reliability
 
@@ -38,38 +40,61 @@ A Python-based tool that leverages OpenAI's GPT to automate and enhance social m
    OPENAI_API_KEY=<your_openai_api_key>
    ```
 
-5. 💻 **Usage**
-   Run the main script to start the social media assistant:
-   ```bash
-   python src/social_media_assistant.py
-   ```
-   The interactive menu will guide you through:
-   - Processing new URLs for content    
-   - Generating platform-specific posts
-   - Managing your content library
-   - Scheduling posts
-   - Saving/loading your content database
+## 💻 Usage
 
+Run the main script to start the social media assistant:
+```bash
+python src/social_media_assistant.py
+```
 
-# 📂 Project Structure
+The interactive menu will guide you through:
+- Processing new URLs for content
+- Generating platform-specific posts in your preferred language
+- Managing your content library
+- Scheduling posts with specific date and time
+- Viewing scheduled posts and their status
+- Saving/loading your content database
 
+## 📅 Scheduling System
+
+The assistant includes a powerful scheduling system that:
+- Runs in the background using a dedicated thread
+- Allows scheduling posts for specific times
+- Automatically publishes content at scheduled times
+- Persists scheduled posts between application restarts
+- Provides status tracking for scheduled/published content
+
+## 📂 Project Structure
+
+```
 social-media-ai/
 ├── src/                           # Source code directory
-│   ├── __init__.py               # Python package initializer
+│   ├── __init__.py                # Python package initializer
 │   └── social_media_assistant.py  # Main application logic
-├── .env                          # Environment variables configuration
-├── .gitignore                    # Git ignore rules
-├── requirements.txt              # Project dependencies
-└── README.md                     # Project documentation
+├── .env                           # Environment variables configuration
+├── .gitignore                     # Git ignore rules
+├── requirements.txt               # Project dependencies
+└── README.md                      # Project documentation
+```
 
+## 📦 Dependencies
+
+- **openai**: Interface with OpenAI's GPT models
+- **requests** & **beautifulsoup4**: Web scraping and content extraction
+- **python-dotenv**: Environment variable management
+- **schedule**: Handling post scheduling
+- **threading**: Running scheduler in background
 
 ## 🤝 Contributing
+
 Contributions are welcome! Please feel free to submit a Pull Request.
+
 1. Fork the repository
-2. Create your feature branch (git checkout -b feature/AmazingFeature)
-3. Commit your changes (git commit -m 'Add some AmazingFeature')
-4. Push to the branch (git push origin feature/AmazingFeature)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-📝 License
+## 📝 License
+
 This project is licensed under the MIT License - see the LICENSE file for details.
