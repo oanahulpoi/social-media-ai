@@ -20,14 +20,14 @@ A Python-based tool that leverages OpenAI's GPT to automate and enhance social m
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/social-media-ai.git
+   git clone https://github.com/oanahulpoi/social-media-ai.git
    cd social-media-ai
    ```
 
 2. **Create a virtual environment**
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   source venv/bin/activate 
    ```
 
 3. **Install dependencies**
